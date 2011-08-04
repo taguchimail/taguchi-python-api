@@ -1,0 +1,121 @@
+#!/usr/bin/python
+
+import os
+import sys
+import json
+from optparse import OptionParser, OptionGroup
+from xml.etree import ElementTree
+
+# append enclosing directory to find the taguchi module
+sys.path.append(os.path.join(sys.path[0], '..'))
+
+import taguchi
+
+# Subclass OptionParser to allow multi-line epilog text
+class CustomOptionParser(OptionParser):
+    def format_epilog(self, formatter):
+        return "\n" + self.epilog + "\n"
+
+if __name__ == "__main__":
+    usage = "usage: %prog [options] resource command [RECORD_ID]"
+    parser = CustomOptionParser(usage=usage, version="%prog 1.0dev1",
+        add_help_option=False, description="Executes a Taguchi APIv4 command \
+on the resource specified.", epilog="""Example usage:
+
+    taguchi-client campaign view 1
+    taguchi-client --params=limit 50 --query=email-like-%taguchimail% \\
+        subscriber viewlist
+""")
+
+    parser.add_option("--help", action="help", 
+        help="show this help message and exit")
+
+    auth_group = OptionGroup(parser, "Credentials")
+    auth_group.add_option("-h", "--hostname", type="string",
+        help="Taguchi API server hostname", dest="hostname")
+    auth_group.add_option("-o", "--organization-id", type="int",
+        help="the organization ID to access", dest="organization_id")
+    auth_group.add_option("-u", "--username", type="string",
+        help="an authorized username for the specified organization",
+        dest="username")
+    auth_group.add_option("-p", "--password", type="string",
+        help="the password of the authorized user", dest="password")
+    parser.add_option_group(auth_group)
+
+    cmd_group = OptionGroup(parser, "Command Options")
+    cmd_group.add_option("--data", type="string", default=None,
+        help="resource data for the command, in JSON format", dest="data")
+    cmd_group.add_option("--params", type="string", action="append", nargs=2,
+        help="specify key/value parameter pairs", 
+        dest="params", default=[], metavar="KEY VALUE")
+    cmd_group.add_option("--query", type="string", action="append",
+        help="specify a query predicate", dest="query", default=[])
+    parser.add_option_group(cmd_group)
+
+    try:
+        # try to load the ~/.taguchipass file
+        with open(os.path.expanduser('~/.taguchipass'), 'rU') as passfile:
+            hostname, organization_id, username, password = \
+                passfile.read().split(':')
+
+            parser.set_defaults(
+                hostname=hostname, organization_id=int(organization_id),
+                username=username, password=password
+            )
+    except StandardError as e:
+        pass
+
+    (options, args) = parser.parse_args()
+    if len(args) < 2:
+        sys.stderr.write("You must specify both a resource and a command.\n")
+        sys.exit(1)
+
+    if not options.password:
+        # get password from stdin
+        pass
+
+    if options.data and len(options.data) > 0:
+        # validate JSON data, if present
+        try:
+            d = json.loads(options.data)
+        except StandardError as e:
+            sys.stderr.write("Data is not a valid JSON object.\n")
+            sys.exit(1)
+        else:
+            if not isinstance(d, list):
+                sys.stderr.write("Root JSON object must be an array.\n")
+                sys.exit(1)
+
+    if not options.username or not options.hostname or \
+            not options.organization_id or not options.password:
+        sys.stderr.write('Taguchi access credentials incompletely specified. \
+If you do not have a ~/.taguchipass file containing a line like: \
+<hostname>:<organization-id>:<username>:<password>\
+\
+you must specify those values as options to this command.\n')
+        sys.exit(1)
+
+    ctx = taguchi.Context(
+        options.hostname, options.username,
+        options.password, options.organization_id
+    )
+
+    result = ctx.make_request(args[0], args[1],
+        record_id=args[2] if len(args) > 2 else None,
+        data=options.data,
+        parameters=dict(options.params),
+        query=options.query
+    )
+
+    try:
+        result = json.loads(result)
+    except StandardError as e:
+        # received an error response
+        try:
+            err = ElementTree.fromstring(result)
+            sys.stderr.write("Error: " + err.find('.//body/br').tail + "\n")
+        except StandardError as e2:
+            sys.stderr.write("Error: unexpected response '" + result + "'\n")
+        sys.exit(1)
+    else:
+        print json.dumps(result, sort_keys=True, indent=4)
