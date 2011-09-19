@@ -9,7 +9,7 @@ setup(
     # meta
     author='TaguchiMarketing Pty Ltd',
     author_email='support@taguchimail.com',
-    url='https://github.com/taguchimail/taguchi-api',
+    url='https://github.com/taguchimail/taguchi-python-api',
     license='LICENSE.txt',
     description='Taguchi HTTP API wrappers.',
     long_description=open('README.rst').read(),
