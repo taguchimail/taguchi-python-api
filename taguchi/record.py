@@ -1,25 +1,25 @@
 import json
-import urllib
-import httplib
-
-from taguchi.context import Context
 
 class Record(object):
     """
     Base class for TM record types.
     """
 
-    def __init__(self, context):
+    def __init__(self, context, resource_type=None, backing=None):
         """
         Initiates an empty Record object.
 
         context: Context
             Determines the TM instance and organization to which the record
             belongs.
+        resource_type: str
+            The type of resource this record represents e.g. activity.
+        backing: dict
+            The data backing the record.
         """
         self.context = context
-        self.resource_type = None
-        self.backing = dict()
+        self.resource_type = resource_type or None
+        self.backing = backing or dict()
 
     @staticmethod
     def get(resource_type, context, record_id, parameters):
@@ -30,16 +30,14 @@ class Record(object):
             Contains the resource type (passed in by subclass methods).
         context: Context
             Determines the TM instance and organization to query.
-        record_id: str
+        record_id: int
             Contains the record's unique TaguchiMail identifier.
         parameters: dict
             Contains additional parameters to the request.
         """
         results = json.loads(context.make_request(resource_type, "GET",
-            record_id, parameters=parameters))
-        rec = Record(context)
-        rec.backing = results[0]
-        return rec
+            record_id=record_id, parameters=parameters))
+        return Record(context, backing=results[0])
 
     @staticmethod
     def find(resource_type, context, sort, order, offset, limit, query):
@@ -56,10 +54,10 @@ class Record(object):
         order: str
             Contains either 'asc' or 'desc', indicating whether the result
             list should be returned in ascending or descending order.
-        offset: str
+        offset: str/int
             Indicates the index of the first record to be returned in the
             list.
-        limit: str
+        limit: str/int
             Indicates the maximum number of records to return.
         query: list
             Contains query predicates, each of the form: [field]-[operator]-
@@ -94,9 +92,7 @@ class Record(object):
             parameters=parameters, query=query))
         records = []
         for result in results:
-            rec = Record(context)
-            rec.backing = result
-            records.append(rec)
+            records.append(Record(context, backing=result))
         return records
 
     def update(self):
@@ -105,7 +101,7 @@ class Record(object):
         """
         data = [self.backing]
         results = json.loads(self.context.make_request(self.resource_type,
-            "PUT", str(self.backing["id"]), json.dumps(data)))
+            "PUT", record_id=self.backing["id"], data=json.dumps(data)))
         self.backing = results[0]
 
     def create(self):

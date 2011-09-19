@@ -1,22 +1,15 @@
 import json
-import urllib
-import httplib
 
-from taguchi.context import Context
 from taguchi.record import Record
 
 class TemplateRevision(object):
 
-    def __init__(self, template, format=None, content=None, revision=None):
+    def __init__(self, template, revision=None):
         """
-        Creates a new template revision, given a parent Template, a format
-        document (a.k.a. Data Description), and a content document (XSL
-        stylesheet).
+        Creates a new template revision, given a parent Template.
         """
-        self.template = template
-        self.backing = revision if revision else dict()
-        self.format = format
-        self.content = content
+        self.template = template # may be used in the future
+        self.backing = revision or dict()
 
     @property
     def format(self):
@@ -45,7 +38,7 @@ class TemplateRevision(object):
 
     @content.setter
     def content(self, value):
-        self.backing["format"] = value
+        self.backing["content"] = value
 
     @property
     def record_id(self):
@@ -54,12 +47,10 @@ class TemplateRevision(object):
         """
         return str(self.backing["id"])
 
-
 class Template(Record):
 
     def __init__(self, context):
-        super(Template, self).__init__(context)
-        self.resource_type = "template"
+        super(Template, self).__init__(context, resource_type="template")
         self.existing_revisions = []
 
     @property
@@ -140,9 +131,9 @@ class Template(Record):
         created upon template create/update.
         """
         if len(self.backing["revisions"]) > 0:
-            return TemplateRevision(self, revision=backing["revisions"][0])
+            return TemplateRevision(self, revision=self.backing["revisions"][0])
         elif len(self.existing_revisions) > 0:
-            return TemplateRevision(this, revision=self.existing_revisions[0])
+            return TemplateRevision(self, revision=self.existing_revisions[0])
         else:
             return None
 
@@ -185,17 +176,17 @@ class Template(Record):
             Contains the list's unique TaguchiMail identifier.
         """
         results = json.loads(context.make_request("template", "GET",
-            record_id, parameters=parameters))
-        rec = Template(context)
-        rec.backing = results[0]
-        rec.existing_revisions = rec.backing["revisions"]
+            record_id=record_id, parameters=parameters))
+        record = Template(context)
+        record.backing = results[0]
+        record.existing_revisions = record.backing["revisions"]
         # Clear out existing revisions so they're not sent back to the server
         # on update.
-        rec.backing["revisions"] = []
-        return rec
+        record.backing["revisions"] = []
+        return record
 
     @staticmethod
-    def get_with_content(context, record_id, parameters):
+    def get_with_content(context, record_id):
         """
         Retrieve a single Template based on its TaguchiMail identifier, with
         its latest revision content.
@@ -205,8 +196,7 @@ class Template(Record):
         record_id: str
             Contains the list's unique TaguchiMail identifier.
         """
-        new_params = dict(revision="latest")
-        return Template.get(context, record_id, new_params)
+        return Template.get(context, record_id, dict(revision="latest"))
 
     @staticmethod
     def find(context, sort, order, offset, limit, query):
@@ -221,10 +211,10 @@ class Template(Record):
         order: str
             Contains either 'asc' or 'desc', indicating whether the result
             list should be returned in ascending or descending order.
-        offset: str
+        offset: str/int
             Indicates the index of the first record to be returned in the
             list.
-        limit: str
+        limit: str/int
             Indicates the maximum number of records to return.
         query: list
             Contains query predicates, each of the form: [field]-[operator]-
@@ -259,11 +249,11 @@ class Template(Record):
             parameters=parameters, query=query))
         records = []
         for result in results:
-            rec = Template(context)
-            rec.backing = result
-            rec.existing_revisions = rec.backing["revisions"]
+            record = Template(context)
+            record.backing = result
+            record.existing_revisions = record.backing["revisions"]
             # Clear out existing revisions so they're not sent back to the
             # server on update.
-            rec.backing["revisions"] = []
-            records.append(rec)
+            record.backing["revisions"] = []
+            records.append(record)
         return records

@@ -1,8 +1,6 @@
 import json
-import urllib
-import httplib
+import datetime
 
-from taguchi.context import Context
 from taguchi.record import Record
 
 class Subscriber(Record):
@@ -15,8 +13,7 @@ class Subscriber(Record):
             Determines the TM instance and organization to which the
             subscriber belongs.
         """
-        super(Subscriber, self).__init__(context)
-        self.resource_type = "subscriber"
+        super(Subscriber, self).__init__(context, resource_type="subscriber")
 
     @property
     def record_id(self):
@@ -99,7 +96,7 @@ class Subscriber(Record):
         """
         return str(self.backing["phone"])
 
-    @extra.setter
+    @phone.setter
     def phone(self, value):
         self.backing["phone"] = value
 
@@ -272,7 +269,7 @@ class Subscriber(Record):
         field: str
             Indicates the custom field to retrieve.
         """
-        self.backing["custom_fields"] = self.backing.get("custom_fields", []) or []
+        self.backing["custom_fields"] = self.backing.get("custom_fields", [])
         for field_data in self.backing["custom_fields"]:
             if str(field_data["field"]) == field:
                 return str(field_data["data"])
@@ -291,14 +288,13 @@ class Subscriber(Record):
             or other complex data types, this should be JSON-encoded (or
             serialized to XML depending on application preference).
         """
-        self.backing["custom_fields"] = self.backing.get("custom_fields", []) or []
-        for i in range(len(self.backing["custom_fields"])):
-            if str(self.backing["custom_fields"][i]["field"]) == field:
-                self.backing["custom_fields"][i]["data"] = data
+        self.backing["custom_fields"] = self.backing.get("custom_fields", [])
+        for field_data in self.backing["custom_fields"]:
+            if str(field_data["field"]) == field:
+                field_data["data"] = data
                 return
         # Field was not found in the array, so add it.
-        cf = dict(field=field, data=data)
-        self.backing["custom_fields"].append(cf)
+        self.backing["custom_fields"].append(dict(field=field, data=data))
 
     def is_subscribed_to_list(self, list):
         """
@@ -308,13 +304,10 @@ class Subscriber(Record):
             Contains the list ID/list to check subscription status for.
         """
         if isinstance(list, str):
-            self.backing["lists"] = self.backing.get("lists", []) or []
-            for list in self.backing["lists"]:
-                if str(list["list_id"]) == list:
-                    if str(list["unsubscribed"]) is None:
-                        return True
-                    else:
-                        return False
+            self.backing["lists"] = self.backing.get("lists", [])
+            for item in self.backing["lists"]:
+                if str(item["list_id"]) == list:
+                    return item["unsubscribed"] is None
             return False
         else:
             return self.is_subscribed_to_list(list.record_id)
@@ -328,10 +321,10 @@ class Subscriber(Record):
             Contains the list ID/list to retrieve subscription option for.
         """
         if isinstance(list, str):
-            self.backing["lists"] = self.backing.get("lists", []) or []
-            for list in self.backing["lists"]:
-                if str(list["list_id"]) == list:
-                    return str(list["option"])
+            self.backing["lists"] = self.backing.get("lists", [])
+            for item in self.backing["lists"]:
+                if str(item["list_id"]) == list:
+                    return str(item["option"])
             return None
         else:
             return self.get_subscription_option(list.record_id)
@@ -344,13 +337,10 @@ class Subscriber(Record):
             Contains the list ID/list to check unsubscription status for.
         """
         if isinstance(list, str):
-            self.backing["lists"] = self.backing.get("lists", []) or []
-            for list in self.backing["lists"]:
-                if str(list["list_id"]) == list:
-                    if str(list["unsubscribed"]) is None:
-                        return False
-                    else:
-                        return True
+            self.backing["lists"] = self.backing.get("lists", [])
+            for item in self.backing["lists"]:
+                if str(item["list_id"]) == list:
+                    return item["unsubscribed"] is not None
             return False
         else:
             self.is_unsubscribed_from_list(list.record_id)
@@ -359,7 +349,7 @@ class Subscriber(Record):
         """
         Retrieves all lists to which this record is subscribed.
         """
-        self.backing["lists"] = self.backing.get("lists", []) or []
+        self.backing["lists"] = self.backing.get("lists", [])
         lists = []
         for list in self.backing["lists"]:
             if list["unsubscribed"] is None:
@@ -377,7 +367,7 @@ class Subscriber(Record):
         """
         Retrieves all lists from which this record is unsubscribed.
         """
-        self.backing["lists"] = self.backing.get("lists", []) or []
+        self.backing["lists"] = self.backing.get("lists", [])
         lists = []
         for list in self.backing["lists"]:
             if list["unsubscribed"] is not None:
@@ -403,15 +393,15 @@ class Subscriber(Record):
             data).
         """
         if isinstance(list, str):
-            self.backing["lists"] = self.backing.get("lists", []) or []
-            for i in range(len(self.backing["lists"])):
-                if str(self.backing["lists"][i]["list_id"]) == list:
-                    self.backing["lists"][i]["option"] = option
-                    self.backing["lists"][i]["unsubscribed"] = None
+            self.backing["lists"] = self.backing.get("lists", [])
+            for item in self.backing["lists"]:
+                if str(item["list_id"]) == list:
+                    item["option"] = option
+                    item["unsubscribed"] = None
                     return
             # List was not found in the array, so add it.
-            list = dict(list_id=int(list), option=option)
-            self.backing["lists"].append(list)
+            self.backing["lists"].append(
+                dict(list_id=int(list), option=option, unsubscribed=None))
         else:
             self.subscribe_to_list(list.record_id, option)
 
@@ -425,15 +415,15 @@ class Subscriber(Record):
             unsubscribed.
         """
         if isinstance(list, str):
-            self.backing["lists"] = self.backing.get("lists", []) or []
-            for i in range(len(self.backing["lists"])):
-                if str(self.backing["lists"][i]["list_id"]) == list and \
-                    self.backing["lists"][i]["unsubscribed"] is None:
-                    self.backing["lists"][i]["unsubscribed"] = True
+            now = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
+            self.backing["lists"] = self.backing.get("lists", [])
+            for item in self.backing["lists"]:
+                if str(item["list_id"]) == list and item["unsubscribed"] is None:
+                    item["unsubscribed"] = now
                     return
             # List was not found in the array, so add it.
-            list = dict(list_id=int(list), unsubscribed=True)
-            self.backing["lists"].append(list)
+            self.backing["lists"].append(
+                dict(list_id=int(list), option=None, unsubscribed=now))
         else:
             self.unsubscribe_from_list(list.record_id)
 
@@ -461,10 +451,10 @@ class Subscriber(Record):
             Contains the record's unique TaguchiMail identifier.
         """
         results = json.loads(context.make_request("subscriber", "GET",
-            record_id, parameters=parameters))
-        rec = Subscriber(context)
-        rec.backing = results[0]
-        return rec
+            record_id=record_id, parameters=parameters))
+        record = Subscriber(context)
+        record.backing = results[0]
+        return record
 
     @staticmethod
     def find(context, sort, order, offset, limit, query):
@@ -479,10 +469,10 @@ class Subscriber(Record):
         order: str
             Contains either 'asc' or 'desc', indicating whether the result
             list should be returned in ascending or descending order.
-        offset: str
+        offset: str/int
             Indicates the index of the first record to be returned in the
             list.
-        limit: str
+        limit: str/int
             Indicates the maximum number of records to return.
         query: list
             Contains query predicates, each of the form: [field]-[operator]-
@@ -517,16 +507,15 @@ class Subscriber(Record):
             parameters=parameters, query=query))
         records = []
         for result in results:
-            rec = Subscriber(context)
-            rec.backing = result
-            records.append(rec)
+            record = Subscriber(context)
+            record.backing = result
+            records.append(record)
         return records
 
 class SubscriberList(Record):
 
     def __init__(self, context):
-        super(SubscriberList, self).__init__(context)
-        self.resource_type = "list"
+        super(SubscriberList, self).__init__(context, resource_type="list")
 
     @property
     def record_id(self):
@@ -639,10 +628,10 @@ class SubscriberList(Record):
             Contains the list's unique TaguchiMail identifier.
         """
         results = json.loads(context.make_request("list", "GET",
-            record_id, parameters=parameters))
-        rec = SubscriberList(context)
-        rec.backing = results[0]
-        return rec
+            record_id=record_id, parameters=parameters))
+        record = SubscriberList(context)
+        record.backing = results[0]
+        return record
 
     @staticmethod
     def find(context, sort, order, offset, limit, query):
@@ -657,10 +646,10 @@ class SubscriberList(Record):
         order: str
             Contains either 'asc' or 'desc', indicating whether the result
             list should be returned in ascending or descending order.
-        offset: str
+        offset: str/int
             Indicates the index of the first record to be returned in the
             list.
-        limit: str
+        limit: str/int
             Indicates the maximum number of records to return.
         query: list
             Contains query predicates, each of the form: [field]-[operator]-
@@ -695,7 +684,7 @@ class SubscriberList(Record):
             parameters=parameters, query=query))
         records = []
         for result in results:
-            rec = SubscriberList(context)
-            rec.backing = result
-            records.append(rec)
+            record = SubscriberList(context)
+            record.backing = result
+            records.append(record)
         return records

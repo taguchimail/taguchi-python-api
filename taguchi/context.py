@@ -41,7 +41,7 @@ class Context(object):
             Indicates the resource.
         command: str
             Indicates the command to issue to the resource.
-        record_id: str
+        record_id: str/int
             Indicates the ID of the record to operate on, for record-specific
             commands.
         data: str
@@ -87,7 +87,7 @@ class Context(object):
         """
         qs = self.base_uri + "/" + resource + "/"
         if record_id is not None:
-            qs += record_id
+            qs += str(record_id)
         qs += "?_method=" + urllib.quote(command)
         qs += "&auth=" + urllib.quote(self.username + "|" + self.password)
         if query is not None:
@@ -114,7 +114,6 @@ class Context(object):
                 "Content-Type": "application/json",
                 "Content-Length": len(data)})
         conn.request(method, qs, data, headers)
-        rep = conn.getresponse()
-        result = rep.read()
+        result = conn.getresponse().read()
         conn.close()
         return result
