@@ -80,7 +80,7 @@ class Campaign(Record):
 
         context: Context
             Determines the TM instance and organization to query.
-        record_id: str
+        record_id: str/int
             Contains the list's unique TaguchiMail identifier.
         """
         results = json.loads(context.make_request("campaign", "GET",
@@ -92,7 +92,7 @@ class Campaign(Record):
     @staticmethod
     def find(context, sort, order, offset, limit, query):
         """
-        Retrieves a list of Campaigns based on a query.
+        Retrieves a list of Campaign(s) based on a query.
 
         context: Context
             Determines the TM instance and organization to query.

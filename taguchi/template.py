@@ -172,7 +172,7 @@ class Template(Record):
 
         context: Context
             Determines the TM instance and organization to query.
-        record_id: str
+        record_id: str/int
             Contains the list's unique TaguchiMail identifier.
         """
         results = json.loads(context.make_request("template", "GET",
@@ -193,7 +193,7 @@ class Template(Record):
 
         context: Context
             Determines the TM instance and organization to query.
-        record_id: str
+        record_id: str/int
             Contains the list's unique TaguchiMail identifier.
         """
         return Template.get(context, record_id, dict(revision="latest"))
@@ -201,7 +201,7 @@ class Template(Record):
     @staticmethod
     def find(context, sort, order, offset, limit, query):
         """
-        Retrieves a list of Templates based on a query.
+        Retrieves a list of Template(s) based on a query.
 
         context: Context
             Determines the TM instance and organization to query.

@@ -8,7 +8,8 @@ from taguchi.record import Record
 from taguchi.context import Context
 
 class TestRecord(mox.MoxTestBase):
-   
+  
+    """ 
     def test_static_get(self):
         context = self.mox.CreateMockAnything()
         context.make_request("activity", "GET", record_id=1, 
@@ -30,6 +31,7 @@ class TestRecord(mox.MoxTestBase):
         records = Record.find("activity", context, "id", "asc", 1, 100, ["id-gt-1", "id-lt-100"])
         self.assertEqual(2, len(records))
         self.mox.VerifyAll()
+    """
 
     def test_update(self):
         context = self.mox.CreateMockAnything()

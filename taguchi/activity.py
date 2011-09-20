@@ -277,9 +277,9 @@ class Activity(Record):
         approval_list: str/SubscriberList
             Indicates List ID of the approval list/the list to which the
             approval request will be sent.
-        subject_tag:
+        subject_tag: str
             Displays at the start of the subject line.
-        custom_message:
+        custom_message: str
             Contains a custom message which will be included in the approval
             header.
         """
@@ -325,7 +325,7 @@ class Activity(Record):
 
         context: Context
             Determines the TM instance and organization to query.
-        record_id: str
+        record_id: str/int
             Contains the list's unique TaguchiMail identifier.
         """
         results = json.loads(context.make_request("activity", "GET",
@@ -346,7 +346,7 @@ class Activity(Record):
 
         context: Context
             Determines the TM instance and organization to query.
-        record_id: str
+        record_id: str/int
             Contains the list's unique TaguchiMail identifier.
         """
         return Activity.get(context, record_id, dict(revision="latest"))
@@ -354,7 +354,7 @@ class Activity(Record):
     @staticmethod
     def find(context, sort, order, offset, limit, query):
         """
-        Retrieves a list of Activities based on a query.
+        Retrieves a list of Activity(s) based on a query.
 
         context: Context
             Determines the TM instance and organization to query.
