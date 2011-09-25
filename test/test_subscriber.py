@@ -126,7 +126,7 @@ class TestSubscriber(mox.MoxTestBase):
         self.assertEqual("option", self.record.get_subscription_option("1"))
         self.assertEqual(None, self.record.get_subscription_option("2"))
 
-    def test_is_subscribed_from_list(self):
+    def test_is_unsubscribed_from_list(self):
         self.assertFalse(self.record.is_unsubscribed_from_list("1"))
         self.assertTrue(self.record.is_unsubscribed_from_list("3"))
 
@@ -248,7 +248,7 @@ class TestSubscriberList(mox.MoxTestBase):
         self.record.subscribe_subscriber(subscriber, "option")
         self.mox.VerifyAll()
 
-    def test_unsubscribe_unsubscriber(self):
+    def test_unsubscribe_subscriber(self):
         subscriber = self.mox.CreateMockAnything()
         subscriber.unsubscribe_from_list(self.record)
         self.mox.ReplayAll()
