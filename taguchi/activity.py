@@ -1,20 +1,15 @@
 import json
-import urllib
-import httplib
 
-from taguchi.context import Context
 from taguchi.record import Record
 
 class ActivityRevision(object):
 
-    def __init__(self, activity, content=None, revision=None):
+    def __init__(self, activity, revision=None):
         """
-        Creates a new activity revision, given a parent Activity and a content
-        document (a.k.a. Source Document).
+        Creates a new activity revision, given a parent Activity.
         """
-        self.activity = activity
-        self.backing = revision if revision else dict()
-        self.content = content
+        self.activity = activity # may be used in the future
+        self.backing = revision or dict()
 
     @property
     def content(self):
@@ -30,7 +25,7 @@ class ActivityRevision(object):
 
     @content.setter
     def content(self, value):
-        self.backing["format"] = value
+        self.backing["content"] = value
 
     @property
     def approval_status(self):
@@ -51,12 +46,10 @@ class ActivityRevision(object):
         """
         return str(self.backing["id"])
 
-
 class Activity(Record):
 
     def __init__(self, context):
-        super(Activity, self).__init__(context)
-        self.resource_type = "activity"
+        super(Activity, self).__init__(context, resource_type="activity")
         self.existing_revisions = []
 
     @property
@@ -220,11 +213,9 @@ class Activity(Record):
         created upon activity create/update.
         """
         if len(self.backing["revisions"]) > 0:
-            return ActivityRevision(self,
-                revision=self.backing["revisions"][0])
+            return ActivityRevision(self, revision=self.backing["revisions"][0])
         elif len(self.existing_revisions) > 0:
-            return ActivityRevision(this,
-                revision=self.existing_revisions[0])
+            return ActivityRevision(self, revision=self.existing_revisions[0])
         else:
             return None
 
@@ -274,7 +265,7 @@ class Activity(Record):
             data = [dict(id=self.record_id, list_id=proof_list,
                 tag=subject_tag, message=custom_message)]
             self.context.make_request(self.resource_type, "PROOF",
-                str(self.backing["id"]), json.dumps(data))
+                record_id=self.record_id, data=json.dumps(data))
         else:
             self.proof(proof_list.record_id, subject_tag, custom_message)
 
@@ -286,9 +277,9 @@ class Activity(Record):
         approval_list: str/SubscriberList
             Indicates List ID of the approval list/the list to which the
             approval request will be sent.
-        subject_tag:
+        subject_tag: str
             Displays at the start of the subject line.
-        custom_message:
+        custom_message: str
             Contains a custom message which will be included in the approval
             header.
         """
@@ -296,7 +287,7 @@ class Activity(Record):
             data = [dict(id=self.record_id, list_id=approval_list,
                 tag=subject_tag, message=custom_message)]
             self.context.make_request(self.resource_type, "APPROVAL",
-                str(self.backing["id"]), json.dumps(data))
+                record_id=self.record_id, data=json.dumps(data))
         else:
             self.request_approval(approval_list.record_id, subject_tag,
                 custom_message)
@@ -320,7 +311,7 @@ class Activity(Record):
             data = [dict(id=self.record_id, test=1 if test else 0,
                 request_content=request_content, conditions=subscribers)]
             self.context.make_request(self.resource_type, "TRIGGER",
-                str(self.backing["id"]), json.dumps(data))
+                record_id=self.record_id, data=json.dumps(data))
         else:
             subscriber_ids = []
             for s in subscribers:
@@ -334,37 +325,36 @@ class Activity(Record):
 
         context: Context
             Determines the TM instance and organization to query.
-        record_id: str
+        record_id: str/int
             Contains the list's unique TaguchiMail identifier.
         """
         results = json.loads(context.make_request("activity", "GET",
-            record_id, parameters=parameters))
-        rec = Activity(context)
-        rec.backing = results[0]
-        rec.existing_revisions = rec.backing["revisions"]
+            record_id=record_id, parameters=parameters))
+        record = Activity(context)
+        record.backing = results[0]
+        record.existing_revisions = record.backing["revisions"]
         # Clear out existing revisions so they're not sent back to the server
         # on update.
-        rec.backing["revisions"] = []
-        return rec
+        record.backing["revisions"] = []
+        return record
 
     @staticmethod
-    def get_with_content(context, record_id, parameters):
+    def get_with_content(context, record_id):
         """
         Retrieves a single Activity based on its TaguchiMail identifier, with
         its latest revision content.
 
         context: Context
             Determines the TM instance and organization to query.
-        record_id: str
+        record_id: str/int
             Contains the list's unique TaguchiMail identifier.
         """
-        new_params = dict(revision="latest")
-        return Activity.get(context, record_id, new_params)
+        return Activity.get(context, record_id, dict(revision="latest"))
 
     @staticmethod
     def find(context, sort, order, offset, limit, query):
         """
-        Retrieves a list of Activities based on a query.
+        Retrieves a list of Activity(s) based on a query.
 
         context: Context
             Determines the TM instance and organization to query.
@@ -374,10 +364,10 @@ class Activity(Record):
         order: str
             Contains either 'asc' or 'desc', indicating whether the result
             list should be returned in ascending or descending order.
-        offset: str
+        offset: str/int
             Indicates the index of the first record to be returned in the
             list.
-        limit: str
+        limit: str/int
             Indicates the maximum number of records to return.
         query: list
             Contains query predicates, each of the form: [field]-[operator]-
@@ -412,11 +402,11 @@ class Activity(Record):
             parameters=parameters, query=query))
         records = []
         for result in results:
-            rec = Activity(context)
-            rec.backing = result
-            rec.existing_revisions = rec.backing["revisions"]
+            record = Activity(context)
+            record.backing = result
+            record.existing_revisions = record.backing["revisions"]
             # Clear out existing revisions so they're not sent back to the
             # server on update.
-            rec.backing["revisions"] = []
-            records.append(rec)
+            record.backing["revisions"] = []
+            records.append(record)
         return records

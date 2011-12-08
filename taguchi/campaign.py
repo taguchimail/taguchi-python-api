@@ -1,8 +1,5 @@
 import json
-import urllib
-import httplib
 
-from taguchi.context import Context
 from taguchi.record import Record
 
 class Campaign(Record):
@@ -15,8 +12,7 @@ class Campaign(Record):
             Determines the TM instance and organization to which the
             campaign belongs.
         """
-        super(Campaign, self).__init__(context)
-        self.resource_type = "campaign"
+        super(Campaign, self).__init__(context, resource_type="campaign")
 
     @property
     def record_id(self):
@@ -84,19 +80,19 @@ class Campaign(Record):
 
         context: Context
             Determines the TM instance and organization to query.
-        record_id: str
+        record_id: str/int
             Contains the list's unique TaguchiMail identifier.
         """
         results = json.loads(context.make_request("campaign", "GET",
-            record_id, parameters=parameters))
-        rec = Campaign(context)
-        rec.backing = results[0]
-        return rec
+            record_id=record_id, parameters=parameters))
+        record = Campaign(context)
+        record.backing = results[0]
+        return record
 
     @staticmethod
     def find(context, sort, order, offset, limit, query):
         """
-        Retrieves a list of Campaigns based on a query.
+        Retrieves a list of Campaign(s) based on a query.
 
         context: Context
             Determines the TM instance and organization to query.
@@ -106,10 +102,10 @@ class Campaign(Record):
         order: str
             Contains either 'asc' or 'desc', indicating whether the result
             list should be returned in ascending or descending order.
-        offset: str
+        offset: str/int
             Indicates the index of the first record to be returned in the
             list.
-        limit: str
+        limit: str/int
             Indicates the maximum number of records to return.
         query: list
             Contains query predicates, each of the form: [field]-[operator]-
@@ -144,7 +140,7 @@ class Campaign(Record):
             parameters=parameters, query=query))
         records = []
         for result in results:
-            rec = Campaign(context)
-            rec.backing = result
-            records.append(rec)
+            record = Campaign(context)
+            record.backing = result
+            records.append(record)
         return records
